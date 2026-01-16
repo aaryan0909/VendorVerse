@@ -1,23 +1,28 @@
-
-import React, { useContext } from 'react';
-import { Users, IndianRupee, TrendingUp, Zap, ChevronRight } from 'lucide-react';
+import React, { useContext, useState } from 'react';
+import { IndianRupee, TrendingUp, Zap, ChevronRight, Info, X } from 'lucide-react';
 import { AppContext } from '../App';
 import { Card } from '../components/UIComponents';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { INITIAL_TRANSACTIONS } from '../mockData';
 
 const Dashboard = () => {
-  const { vendor, t } = useContext(AppContext);
+  const { vendor, t, isDemo } = useContext(AppContext);
   const navigate = useNavigate();
+  const [showDemoBanner, setShowDemoBanner] = useState(true);
 
   // Fetch Stats
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['vendorStats', vendor.id],
+    queryKey: ['vendorStats', vendor?.id],
     queryFn: async () => {
+        if (isDemo) {
+            // Mock Data for Demo
+            return { revenue: 2450, count: 12, customerCount: 45 };
+        }
+
         const today = new Date().toISOString().split('T')[0];
         
-        // 1. Today's Revenue
         const { data: todayTxns } = await supabase
             .from('transactions')
             .select('amount')
@@ -27,20 +32,23 @@ const Dashboard = () => {
         const revenue = todayTxns?.reduce((sum, tx) => sum + Number(tx.amount), 0) || 0;
         const count = todayTxns?.length || 0;
 
-        // 2. Total Customers
         const { count: customerCount } = await supabase
             .from('vendor_customers')
             .select('*', { count: 'exact', head: true })
             .eq('vendor_id', vendor.id);
 
         return { revenue, count, customerCount: customerCount || 0 };
-    }
+    },
+    enabled: !!vendor?.id
   });
 
   // Fetch Recent Transactions
   const { data: recentTxns } = useQuery({
-      queryKey: ['recentTxns', vendor.id],
+      queryKey: ['recentTxns', vendor?.id],
       queryFn: async () => {
+          if (isDemo) {
+            return INITIAL_TRANSACTIONS;
+          }
           const { data } = await supabase
             .from('transactions')
             .select('*, customers(name, phone)')
@@ -48,7 +56,8 @@ const Dashboard = () => {
             .order('created_at', { ascending: false })
             .limit(5);
           return data || [];
-      }
+      },
+      enabled: !!vendor?.id
   });
 
   if (isLoading) return <div className="p-8 text-center text-gray-500">Loading Dashboard...</div>;
@@ -59,10 +68,27 @@ const Dashboard = () => {
       {/* Welcome Section */}
       <div className="flex justify-between items-center">
         <div>
-            <h1 className="text-2xl font-extrabold text-gray-900">{t('namaste')}, {vendor.owner_name?.split(' ')[0]} 👋</h1>
+            <h1 className="text-2xl font-extrabold text-gray-900">{t('namaste')}, {vendor?.owner_name?.split(' ')[0] || 'Partner'} 👋</h1>
             <p className="text-gray-500 font-medium">{t('highSales')}</p>
         </div>
       </div>
+
+      {isDemo && showDemoBanner && (
+          <div className="bg-blue-50 border border-blue-200 p-3 rounded-xl flex items-start justify-between">
+              <div className="flex items-start space-x-3">
+                <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                <div>
+                    <p className="text-sm font-bold text-blue-800">Preview Mode Active</p>
+                    <p className="text-xs text-blue-700">
+                        You are viewing a simulation. Data is not saved to the database.
+                    </p>
+                </div>
+              </div>
+              <button onClick={() => setShowDemoBanner(false)} className="text-blue-400 hover:text-blue-600">
+                  <X className="w-4 h-4" />
+              </button>
+          </div>
+      )}
 
       {/* Hero Card - Money */}
       <div className="bg-gradient-to-r from-brand-green to-emerald-600 rounded-3xl p-6 text-white shadow-xl shadow-green-200">
@@ -94,7 +120,10 @@ const Dashboard = () => {
             <div className="bg-brand-yellow p-2 rounded-full mr-3 text-brand-dark">
                 <Zap className="w-5 h-5 fill-current" />
             </div>
-            <span className="font-bold text-lg">{t('simulatePay')}</span>
+            <div className="text-left">
+                <span className="font-bold text-lg block">{t('simulatePay')}</span>
+                <span className="text-xs text-gray-400 font-medium">Simulate Customer Payment</span>
+            </div>
         </div>
         <ChevronRight className="w-6 h-6 text-gray-400" />
       </button>
@@ -107,7 +136,7 @@ const Dashboard = () => {
         </Card>
         <Card className="p-4 border-l-4 border-brand-yellow bg-yellow-50/50">
             <p className="text-xs text-gray-500 font-bold uppercase mb-1">{t('weeklyVisits')}</p>
-            <p className="text-2xl font-extrabold text-brand-yellow">--</p>
+            <p className="text-2xl font-extrabold text-brand-yellow">84</p>
         </Card>
       </div>
 
@@ -130,7 +159,7 @@ const Dashboard = () => {
                         <div>
                             <p className="font-bold text-gray-900">{custName}</p>
                             <p className="text-xs text-gray-500 font-medium">
-                                {new Date(tx.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                {tx.created_at.includes('T') ? new Date(tx.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : tx.created_at}
                             </p>
                         </div>
                     </div>

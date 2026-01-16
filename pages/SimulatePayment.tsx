@@ -1,26 +1,36 @@
-
 import React, { useState, useContext } from 'react';
 import { AppContext } from '../App';
 import { Card, Button, Input } from '../components/UIComponents';
 import { supabase } from '../lib/supabase';
-import { CheckCircle, Zap } from 'lucide-react';
+import { CheckCircle, QrCode, MessageSquare, Smartphone, ArrowRight } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { CURRENT_VENDOR } from '../mockData';
 
 const SimulatePayment = () => {
-    const { vendor, t } = useContext(AppContext);
+    const { vendor, t, isDemo } = useContext(AppContext);
     const queryClient = useQueryClient();
     
     const [amount, setAmount] = useState('');
     const [phone, setPhone] = useState('');
-    const [status, setStatus] = useState<'IDLE' | 'SUCCESS'>('IDLE');
-    const [earned, setEarned] = useState(0);
+    const [status, setStatus] = useState<'IDLE' | 'PROCESSING' | 'SUCCESS'>('IDLE');
+    const [pointsEarned, setPointsEarned] = useState(0);
 
     const processTransaction = useMutation({
         mutationFn: async () => {
+            // Simulation Delay
+            await new Promise(r => setTimeout(r, 1500));
+            
+            const earned = Math.floor((parseInt(amount || '0') / 10) * (vendor.points_per_10_rupees || 1));
+            setPointsEarned(earned);
+
+            if (isDemo) {
+                return earned; // Skip DB in demo
+            }
+
             if (!amount || !phone) throw new Error("Missing info");
             
             // 1. Calculate Points
-            const points = Math.floor((parseInt(amount) / 10) * vendor.points_per_10_rupees);
+            const points = earned;
             
             // 2. Find or Create Customer
             let customerId;
@@ -49,10 +59,10 @@ const SimulatePayment = () => {
                 amount: parseInt(amount),
                 points_earned: points,
                 type: 'EARN',
-                payment_method: 'cash'
+                payment_method: 'phonepe' // Simulating UPI
             });
 
-            // 4. Update/Upsert Vendor_Customer Balance
+            // 4. Update Balance
             const { data: vcData } = await supabase
                 .from('vendor_customers')
                 .select('points_balance, total_spent, visit_count')
@@ -82,73 +92,101 @@ const SimulatePayment = () => {
 
             return points;
         },
-        onSuccess: (points) => {
-            setEarned(points);
+        onSuccess: () => {
             setStatus('SUCCESS');
             queryClient.invalidateQueries({ queryKey: ['vendorStats'] });
             queryClient.invalidateQueries({ queryKey: ['recentTxns'] });
-            setTimeout(() => {
-                setStatus('IDLE');
-                setAmount('');
-                setPhone('');
-            }, 3000);
         },
         onError: (err) => {
             alert("Error: " + err.message);
         }
     });
 
+    const handleSimulate = () => {
+        setStatus('PROCESSING');
+        processTransaction.mutate();
+    }
+
+    const reset = () => {
+        setStatus('IDLE');
+        setAmount('');
+        setPhone('');
+    }
+
     if (status === 'SUCCESS') {
         return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center animate-in zoom-in">
-                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6">
-                    <CheckCircle className="w-12 h-12 text-green-600" />
+            <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-green-200 shadow-lg">
+                    <CheckCircle className="w-10 h-10 text-green-600" />
                 </div>
-                <h2 className="text-3xl font-extrabold text-gray-900 mb-2">{t('paymentReceived')}</h2>
-                <p className="text-xl text-gray-600">Added <span className="font-bold text-brand-saffron">{earned} pts</span></p>
-                <p className="text-sm text-gray-400 mt-8">Returning to form...</p>
+                <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Payment Captured!</h2>
+                
+                {/* Simulated SMS Preview */}
+                <div className="bg-gray-100 p-4 rounded-xl text-left max-w-xs mx-auto mb-6 relative border border-gray-200">
+                    <div className="absolute -top-3 left-4 bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center">
+                        <MessageSquare className="w-3 h-3 mr-1" /> SMS SENT
+                    </div>
+                    <p className="text-sm text-gray-800 font-mono leading-relaxed">
+                        "Your payment of ₹{amount} at <strong>{vendor.business_name || CURRENT_VENDOR.business_name}</strong> was successful. You earned <strong>{pointsEarned} Pts!</strong> 
+                        <br/><br/>
+                        Tap to collect & redeem: <span className="text-blue-600 underline">vverse.in/d/2x9a</span>"
+                    </p>
+                </div>
+
+                <p className="text-sm text-gray-500 mb-8 max-w-xs mx-auto">
+                    The customer has received a link to download the VendorVerse app and track their rewards.
+                </p>
+
+                <Button onClick={reset} className="w-full">Next Customer</Button>
             </div>
         );
     }
 
     return (
         <div className="space-y-6 pb-24">
-            <h1 className="text-2xl font-extrabold text-gray-900">{t('simTitle')}</h1>
-            <Card className="p-6 border-t-4 border-brand-saffron">
-                <div className="flex items-center space-x-3 mb-6 bg-orange-50 p-4 rounded-xl">
-                    <Zap className="w-6 h-6 text-brand-saffron" />
-                    <p className="text-sm text-gray-700 font-medium">{t('simDesc')}</p>
+            <h1 className="text-2xl font-extrabold text-gray-900">Simulate Transaction</h1>
+            <p className="text-gray-500 text-sm">
+                Since we are in test mode, use this form to simulate a customer paying via PhonePe/GPay/Paytm.
+            </p>
+
+            <Card className="p-6 border-t-4 border-blue-500 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <QrCode className="w-32 h-32" />
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-6 relative z-10">
                     <Input 
-                        label={t('custPhone')}
+                        label="Customer Mobile (Linked to UPI)"
                         type="tel"
                         placeholder="98765 43210"
                         value={phone}
                         onChange={(e: any) => setPhone(e.target.value)}
                     />
                     <Input 
-                        label={t('amount')}
+                        label="Bill Amount (₹)"
                         type="number"
-                        placeholder="50"
+                        placeholder="e.g. 150"
                         value={amount}
                         onChange={(e: any) => setAmount(e.target.value)}
                     />
                     
-                    <div className="bg-gray-50 p-4 rounded-xl flex justify-between items-center">
-                        <span className="text-sm font-bold text-gray-500">Points to be added:</span>
-                        <span className="text-2xl font-extrabold text-brand-saffron">
-                            {amount ? Math.floor((parseInt(amount) / 10) * vendor.points_per_10_rupees) : 0}
-                        </span>
+                    <div className="bg-blue-50 p-4 rounded-xl">
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs font-bold text-blue-800 uppercase">Est. Points</span>
+                            <span className="text-2xl font-extrabold text-blue-600">
+                                {amount ? Math.floor((parseInt(amount) / 10) * (vendor.points_per_10_rupees || 1)) : 0}
+                            </span>
+                        </div>
+                        <p className="text-[10px] text-blue-600">Based on rule: {vendor.points_per_10_rupees || 1} Pt / ₹10</p>
                     </div>
 
                     <Button 
-                        className="w-full py-4 text-lg" 
-                        onClick={() => processTransaction.mutate()}
-                        isLoading={processTransaction.isPending}
+                        className="w-full py-4 text-lg bg-blue-600 hover:bg-blue-700 border-blue-800" 
+                        onClick={handleSimulate}
+                        isLoading={status === 'PROCESSING'}
                     >
-                        {t('simulatePay')}
+                        {status === 'PROCESSING' ? 'Connecting to Bank...' : 'Simulate Payment Recieved'} 
+                        {!status && <Smartphone className="w-5 h-5 ml-2" />}
                     </Button>
                 </div>
             </Card>

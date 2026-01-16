@@ -9,6 +9,22 @@ VendorVerse is the **first UPI-native loyalty SaaS** designed specifically for t
 
 ---
 
+## ❓ Architecture FAQ
+
+### 1. "Will the app always ask me to connect the database?"
+**No.** The "Connect Database" screen you see during development is a helper tool.
+*   **Production:** In a real deployment, the API Key is set in the server environment variables (`REACT_APP_SUPABASE_ANON_KEY`). The user never sees a connection screen.
+*   **Development:** Once you paste your key into `lib/supabase.ts` or `EnvSetup` once, it persists.
+
+### 2. "Will this not be one database for the whole app?"
+**Yes, it is Single-Tenant.**
+*   We use **one** single Supabase project for the entire platform.
+*   The `vendors` table contains all merchant accounts.
+*   The `transactions` table contains all sales for all vendors, separated by `vendor_id`.
+*   You do **not** need to create a new database for every new user.
+
+---
+
 ## 📑 Investment & Strategy Documentation
 
 We have compiled detailed research and planning documents for co-founders, investors, and technical architects:

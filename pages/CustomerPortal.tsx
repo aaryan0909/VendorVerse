@@ -1,190 +1,129 @@
-
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../App';
-import { Card, Button, Badge } from '../components/UIComponents';
-import { QrCode, History, Star, ArrowRight, User, MapPin } from 'lucide-react';
+import { Card, Button } from '../components/UIComponents';
+import { QrCode, History, Star, User, MapPin, Wallet, Bell } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { Reward, VendorCustomer } from '../types';
+import { INITIAL_REWARDS, INITIAL_CUSTOMERS } from '../mockData';
 
 const CustomerPortal = () => {
-  const { vendor } = useContext(AppContext);
+  const { vendor, isDemo } = useContext(AppContext);
   const [activeTab, setActiveTab] = useState<'rewards' | 'history'>('rewards');
 
   // Fetch Rewards
   const { data: rewards } = useQuery({
       queryKey: ['rewards', vendor.id],
       queryFn: async () => {
+          if (isDemo) return INITIAL_REWARDS;
           const { data } = await supabase.from('rewards').select('*').eq('vendor_id', vendor.id);
           return data || [];
       }
   });
 
-  // Simulate or Fetch Logged In User
-  // In a real app, we would auth the customer. Here we just mock/fetch the first one for the vendor.
-  const { data: user } = useQuery({
-    queryKey: ['customerProfile', vendor.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('vendor_customers')
-        .select('*, customers(*)')
-        .eq('vendor_id', vendor.id)
-        .limit(1)
-        .single();
-      
-      // Fallback if no data
-      if (!data) {
-        return {
-          id: 'dummy',
-          vendor_id: vendor.id,
-          points_balance: 0,
-          tier: 'bronze',
-          customers: { phone: 'Guest' }
-        } as unknown as VendorCustomer;
-      }
-      return data as VendorCustomer;
-    }
-  });
-
-  if (!user) return <div className="p-8 text-center">Loading...</div>;
+  // Mock User
+  const user = INITIAL_CUSTOMERS[0]; 
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 max-w-md mx-auto border-x border-gray-200 shadow-2xl overflow-hidden relative font-sans">
+    <div className="min-h-screen bg-gray-100 pb-20 max-w-md mx-auto border-x border-gray-200 shadow-2xl overflow-hidden relative font-sans">
       
-      {/* Header */}
-      <div className="bg-gradient-to-br from-brand-saffron to-orange-600 text-white p-6 rounded-b-[2.5rem] shadow-xl relative z-10">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h2 className="text-xl font-bold opacity-90">{vendor.business_name}</h2>
-            <div className="flex items-center text-xs opacity-75 mt-1">
-                <MapPin className="w-3 h-3 mr-1" /> Dadar Station, Mumbai
-            </div>
+      {/* App Header */}
+      <div className="bg-white p-4 pt-6 flex justify-between items-center sticky top-0 z-30 shadow-sm">
+          <div className="flex items-center space-x-2">
+              <div className="bg-brand-saffron p-1.5 rounded-lg">
+                <Wallet className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="font-extrabold text-xl tracking-tight text-gray-900">VendorVerse</h1>
           </div>
-          <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium">
-             {user.customers?.phone}
-          </div>
-        </div>
-
-        <div className="text-center py-4">
-          <p className="text-sm opacity-80 mb-1 font-medium">YOUR BALANCE</p>
-          <h1 className="text-6xl font-bold tracking-tight drop-shadow-sm">{user.points_balance}</h1>
-          <p className="text-sm font-medium mt-1 opacity-90">Points</p>
-        </div>
-
-        {/* Tier Progress */}
-        <div className="mt-6">
-            <div className="flex justify-between text-xs mb-2 opacity-90 font-medium">
-                <span>Silver</span>
-                <span>Gold (500 pts)</span>
-            </div>
-            <div className="bg-black/20 rounded-full h-2 w-full overflow-hidden backdrop-blur-sm">
-                <div className="bg-brand-yellow h-full rounded-full shadow-[0_0_10px_rgba(255,193,7,0.5)]" style={{ width: '45%' }}></div>
-            </div>
-        </div>
+          <Bell className="w-6 h-6 text-gray-400" />
       </div>
 
       {/* Main Content */}
-      <div className="p-5 space-y-6 -mt-4 relative z-20">
+      <div className="p-4 space-y-6">
         
-        {/* Quick Scan */}
-        <Card className="p-4 bg-white border-none shadow-lg flex items-center justify-between cursor-pointer active:scale-95 transition-transform" onClick={() => alert("Simulating QR Scan...")}>
-          <div className="flex items-center space-x-4">
-            <div className="bg-brand-green/10 p-3 rounded-xl">
-              <QrCode className="w-8 h-8 text-brand-green" />
+        {/* Total Points Card */}
+        <div className="bg-gray-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+            <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Total Points Balance</p>
+            <h2 className="text-4xl font-extrabold">1,240 <span className="text-lg text-gray-500 font-medium">pts</span></h2>
+            <div className="mt-6 flex gap-3">
+                 <button className="bg-brand-saffron text-white px-4 py-2 rounded-xl text-sm font-bold flex-1">Scan QR</button>
+                 <button className="bg-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold flex-1">History</button>
             </div>
-            <div>
-              <h3 className="font-bold text-gray-900 text-lg">Scan to Redeem</h3>
-              <p className="text-xs text-gray-500">Show to {vendor.owner_name}</p>
-            </div>
-          </div>
-          <div className="bg-gray-50 p-2 rounded-full">
-            <ArrowRight className="w-5 h-5 text-gray-400" />
-          </div>
-        </Card>
-
-        {/* Tabs */}
-        <div className="flex bg-gray-200 p-1 rounded-xl">
-            <button 
-                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'rewards' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}
-                onClick={() => setActiveTab('rewards')}
-            >
-                Rewards
-            </button>
-            <button 
-                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'history' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}
-                onClick={() => setActiveTab('history')}
-            >
-                History
-            </button>
         </div>
 
-        {/* Rewards Section */}
-        {activeTab === 'rewards' && (
-          <div className="space-y-4 animate-in slide-in-from-bottom-2 fade-in">
-            {rewards?.map((reward: Reward) => {
-              const canAfford = user.points_balance >= reward.points_required;
-              const progress = Math.min((user.points_balance / reward.points_required) * 100, 100);
-              
-              return (
-                <div key={reward.id} className={`bg-white p-4 rounded-2xl border-2 ${canAfford ? 'border-brand-saffron' : 'border-gray-100'} shadow-sm relative overflow-hidden`}>
-                   {canAfford && (
-                       <div className="absolute top-0 right-0 bg-brand-saffron text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg">
-                           READY
-                       </div>
-                   )}
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                        <h4 className="font-bold text-gray-900 text-lg">{reward.name}</h4>
-                        <p className="text-xs text-gray-500 line-clamp-1">{reward.description}</p>
+        {/* Your Memberships */}
+        <div>
+            <h3 className="font-bold text-gray-900 mb-3 text-lg">Your Memberships</h3>
+            <div className="space-y-3">
+                
+                {/* Active Card (Current Vendor) */}
+                <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center font-bold text-brand-saffron text-xl">
+                                {vendor.business_name?.charAt(0) || 'R'}
+                            </div>
+                            <div>
+                                <h4 className="font-extrabold text-gray-900">{vendor.business_name || 'Raju Chai Wala'}</h4>
+                                <div className="flex items-center text-xs text-gray-500 mt-0.5">
+                                    <MapPin className="w-3 h-3 mr-1" /> Dadar West
+                                </div>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                             <span className="block text-2xl font-extrabold text-brand-saffron">{user.points_balance}</span>
+                             <span className="text-[10px] text-gray-400 font-bold uppercase">Points</span>
+                        </div>
                     </div>
-                    <div className="text-right">
-                        <span className="text-xl font-bold text-gray-900">{reward.points_required}</span>
-                        <span className="text-xs text-gray-400 block">pts</span>
+                    
+                    {/* Rewards Slider */}
+                    <div className="mt-6">
+                        <p className="text-xs font-bold text-gray-400 uppercase mb-2">Rewards available</p>
+                        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                            {rewards?.map(r => (
+                                <div key={r.id} className="min-w-[140px] bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                    <p className="font-bold text-gray-800 text-sm truncate">{r.name}</p>
+                                    <p className="text-xs text-brand-saffron font-bold">{r.points_required} pts</p>
+                                    <button className="mt-2 w-full bg-white border border-gray-200 text-xs font-bold py-1.5 rounded-lg hover:bg-gray-50">Redeem</button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                  </div>
-                  
-                  {!canAfford && (
-                      <div className="mt-3">
-                          <div className="flex justify-between text-[10px] text-gray-400 mb-1">
-                              <span>Progress</span>
-                              <span>{Math.round(progress)}%</span>
-                          </div>
-                          <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-brand-green rounded-full" style={{ width: `${progress}%` }}></div>
-                          </div>
-                      </div>
-                  )}
-
-                  {canAfford && (
-                      <Button className="w-full mt-3 py-2 text-sm bg-brand-saffron hover:bg-orange-600 shadow-md shadow-orange-200" onClick={() => alert(`Redeeming: ${reward.name}`)}>
-                          Redeem Now
-                      </Button>
-                  )}
                 </div>
-              );
-            })}
-          </div>
-        )}
 
-        {activeTab === 'history' && (
-            <div className="space-y-4 animate-in slide-in-from-bottom-2 fade-in text-center py-10">
-                <History className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">No recent transactions</p>
+                {/* Other Mock Vendors */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 opacity-60 grayscale">
+                    <div className="flex justify-between items-center">
+                         <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600">
+                                S
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-gray-900">Shiv Vada Pav</h4>
+                                <p className="text-xs text-gray-500">Kalyan</p>
+                            </div>
+                        </div>
+                        <span className="font-bold text-gray-400">0 pts</span>
+                    </div>
+                </div>
+
             </div>
-        )}
+        </div>
+
       </div>
 
         {/* Bottom Nav */}
-        <div className="fixed bottom-0 max-w-md w-full bg-white border-t border-gray-200 flex justify-around py-2 px-2 z-20 shadow-[0_-5px_10px_rgba(0,0,0,0.02)]">
-            <button className="flex flex-col items-center p-2 text-brand-saffron">
-                <Star className="w-6 h-6 fill-current" />
-                <span className="text-[10px] font-bold mt-1">Home</span>
+        <div className="fixed bottom-0 max-w-md w-full bg-white border-t border-gray-200 flex justify-around py-3 px-2 z-20 shadow-[0_-5px_10px_rgba(0,0,0,0.02)]">
+            <button className="flex flex-col items-center p-1 text-brand-saffron">
+                <Wallet className="w-6 h-6 fill-current" />
+                <span className="text-[10px] font-bold mt-1">Wallet</span>
             </button>
-            <button className="flex flex-col items-center p-2 text-gray-400">
-                <History className="w-6 h-6" />
-                <span className="text-[10px] font-medium mt-1">Activity</span>
+            <button className="flex flex-col items-center p-1 text-gray-400">
+                <QrCode className="w-6 h-6" />
+                <span className="text-[10px] font-medium mt-1">Scan</span>
             </button>
-            <button className="flex flex-col items-center p-2 text-gray-400">
+            <button className="flex flex-col items-center p-1 text-gray-400">
                 <User className="w-6 h-6" />
                 <span className="text-[10px] font-medium mt-1">Profile</span>
             </button>

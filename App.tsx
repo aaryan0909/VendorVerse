@@ -10,11 +10,13 @@ import CustomerPortal from './pages/CustomerPortal';
 import Login from './pages/Login';
 import VendorOnboarding from './pages/VendorOnboarding';
 import SimulatePayment from './pages/SimulatePayment';
+import EnvSetup from './pages/EnvSetup';
 
 import BottomNav from './components/BottomNav';
 import { translations } from './translations';
 import { Vendor, Language } from './types';
-import { supabase } from './lib/supabase';
+import { supabase, isConfigured } from './lib/supabase';
+import { CURRENT_VENDOR } from './mockData';
 
 // Context Definition
 interface AppContextType {
@@ -23,6 +25,7 @@ interface AppContextType {
   setVendor: (v: Vendor) => void;
   setLanguage: (l: Language) => void;
   t: (key: keyof typeof translations['en']) => string;
+  isDemo: boolean;
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -31,10 +34,16 @@ const queryClient = new QueryClient();
 // Auth Checker
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     const navigate = useNavigate();
-    const { setVendor } = React.useContext(AppContext);
+    const { setVendor, isDemo } = React.useContext(AppContext);
 
     useEffect(() => {
         const checkUser = async () => {
+            if (isDemo) {
+                // In Demo mode, auto-login as mock vendor if not set
+                setVendor(CURRENT_VENDOR);
+                return;
+            }
+
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
                 navigate('/login');
@@ -46,20 +55,25 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
             else navigate('/onboarding');
         };
         checkUser();
-    }, [navigate, setVendor]);
+    }, [navigate, setVendor, isDemo]);
 
     return <>{children}</>;
 };
 
 const Header = () => {
-    const { language, setLanguage, vendor } = React.useContext(AppContext);
+    const { language, setLanguage, vendor, isDemo } = React.useContext(AppContext);
     return (
         <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sticky top-0 z-40">
             <div className="flex items-center">
                 <div className="w-8 h-8 bg-brand-saffron rounded-lg flex items-center justify-center mr-2">
                     <Store className="w-5 h-5 text-white" />
                 </div>
-                <span className="font-bold text-gray-900 text-lg truncate max-w-[150px]">{vendor?.business_name || 'VendorVerse'}</span>
+                <div className="flex flex-col">
+                    <span className="font-bold text-gray-900 text-lg truncate max-w-[150px]">
+                        {vendor?.business_name || 'VendorVerse'}
+                    </span>
+                    {isDemo && <span className="text-[10px] text-brand-green font-bold bg-green-50 px-1 rounded w-fit">DEMO MODE</span>}
+                </div>
             </div>
             <button 
                 onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
@@ -104,10 +118,10 @@ const Landing = () => {
                     Merchant Login
                 </button>
                  <button onClick={() => navigate('/customer')} className="w-full bg-white border-2 border-brand-green text-brand-green hover:bg-green-50 p-4 rounded-xl font-bold text-lg flex items-center justify-center">
-                    Customer View
+                    Customer App (View)
                 </button>
             </div>
-            <p className="mt-8 text-xs text-gray-400">Production Ready Build v1.0</p>
+            <p className="mt-8 text-xs text-gray-400">Production Ready Build v1.2</p>
         </div>
     </div>
     );
@@ -116,6 +130,9 @@ const Landing = () => {
 const App = () => {
   const [vendor, setVendor] = useState<Vendor>({} as Vendor);
   const [language, setLanguage] = useState<Language>('en');
+  
+  // If not configured, we run in Demo Mode
+  const isDemo = !isConfigured();
 
   const t = (key: keyof typeof translations['en']) => {
       return translations[language][key] || key;
@@ -124,12 +141,13 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
         <AppContext.Provider value={{ 
-            vendor, language, setVendor, setLanguage, t
+            vendor, language, setVendor, setLanguage, t, isDemo
         }}>
         <Router>
             <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/setup-db" element={<EnvSetup />} />
             <Route path="/onboarding" element={<VendorOnboarding />} />
             <Route path="/customer" element={<CustomerPortal />} />
             
