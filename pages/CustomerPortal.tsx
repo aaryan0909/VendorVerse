@@ -1,13 +1,52 @@
+
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../App';
 import { Card, Button, Badge } from '../components/UIComponents';
 import { QrCode, History, Star, ArrowRight, User, MapPin } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../lib/supabase';
+import { Reward, VendorCustomer } from '../types';
 
 const CustomerPortal = () => {
-  const { customers, rewards, vendor } = useContext(AppContext);
-  // Simulating logged in user (Amit Singh - c1)
-  const user = customers[0]; 
+  const { vendor } = useContext(AppContext);
   const [activeTab, setActiveTab] = useState<'rewards' | 'history'>('rewards');
+
+  // Fetch Rewards
+  const { data: rewards } = useQuery({
+      queryKey: ['rewards', vendor.id],
+      queryFn: async () => {
+          const { data } = await supabase.from('rewards').select('*').eq('vendor_id', vendor.id);
+          return data || [];
+      }
+  });
+
+  // Simulate or Fetch Logged In User
+  // In a real app, we would auth the customer. Here we just mock/fetch the first one for the vendor.
+  const { data: user } = useQuery({
+    queryKey: ['customerProfile', vendor.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('vendor_customers')
+        .select('*, customers(*)')
+        .eq('vendor_id', vendor.id)
+        .limit(1)
+        .single();
+      
+      // Fallback if no data
+      if (!data) {
+        return {
+          id: 'dummy',
+          vendor_id: vendor.id,
+          points_balance: 0,
+          tier: 'bronze',
+          customers: { phone: 'Guest' }
+        } as unknown as VendorCustomer;
+      }
+      return data as VendorCustomer;
+    }
+  });
+
+  if (!user) return <div className="p-8 text-center">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 max-w-md mx-auto border-x border-gray-200 shadow-2xl overflow-hidden relative font-sans">
@@ -16,19 +55,19 @@ const CustomerPortal = () => {
       <div className="bg-gradient-to-br from-brand-saffron to-orange-600 text-white p-6 rounded-b-[2.5rem] shadow-xl relative z-10">
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h2 className="text-xl font-bold opacity-90">{vendor.businessName}</h2>
+            <h2 className="text-xl font-bold opacity-90">{vendor.business_name}</h2>
             <div className="flex items-center text-xs opacity-75 mt-1">
                 <MapPin className="w-3 h-3 mr-1" /> Dadar Station, Mumbai
             </div>
           </div>
           <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium">
-             {user.phone}
+             {user.customers?.phone}
           </div>
         </div>
 
         <div className="text-center py-4">
           <p className="text-sm opacity-80 mb-1 font-medium">YOUR BALANCE</p>
-          <h1 className="text-6xl font-bold tracking-tight drop-shadow-sm">{user.currentPoints}</h1>
+          <h1 className="text-6xl font-bold tracking-tight drop-shadow-sm">{user.points_balance}</h1>
           <p className="text-sm font-medium mt-1 opacity-90">Points</p>
         </div>
 
@@ -55,7 +94,7 @@ const CustomerPortal = () => {
             </div>
             <div>
               <h3 className="font-bold text-gray-900 text-lg">Scan to Redeem</h3>
-              <p className="text-xs text-gray-500">Show to {vendor.ownerName}</p>
+              <p className="text-xs text-gray-500">Show to {vendor.owner_name}</p>
             </div>
           </div>
           <div className="bg-gray-50 p-2 rounded-full">
@@ -82,9 +121,9 @@ const CustomerPortal = () => {
         {/* Rewards Section */}
         {activeTab === 'rewards' && (
           <div className="space-y-4 animate-in slide-in-from-bottom-2 fade-in">
-            {rewards.map(reward => {
-              const canAfford = user.currentPoints >= reward.pointsRequired;
-              const progress = Math.min((user.currentPoints / reward.pointsRequired) * 100, 100);
+            {rewards?.map((reward: Reward) => {
+              const canAfford = user.points_balance >= reward.points_required;
+              const progress = Math.min((user.points_balance / reward.points_required) * 100, 100);
               
               return (
                 <div key={reward.id} className={`bg-white p-4 rounded-2xl border-2 ${canAfford ? 'border-brand-saffron' : 'border-gray-100'} shadow-sm relative overflow-hidden`}>
@@ -99,7 +138,7 @@ const CustomerPortal = () => {
                         <p className="text-xs text-gray-500 line-clamp-1">{reward.description}</p>
                     </div>
                     <div className="text-right">
-                        <span className="text-xl font-bold text-gray-900">{reward.pointsRequired}</span>
+                        <span className="text-xl font-bold text-gray-900">{reward.points_required}</span>
                         <span className="text-xs text-gray-400 block">pts</span>
                     </div>
                   </div>

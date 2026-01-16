@@ -1,23 +1,65 @@
+
 import React, { useContext } from 'react';
-import { 
-  Users, IndianRupee, QrCode, TrendingUp, Zap, ChevronRight
-} from 'lucide-react';
+import { Users, IndianRupee, TrendingUp, Zap, ChevronRight } from 'lucide-react';
 import { AppContext } from '../App';
-import { Card, Button, Badge } from '../components/UIComponents';
+import { Card } from '../components/UIComponents';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { customers, transactions, analyticsData, vendor, t, simulateTransaction } = useContext(AppContext);
-  
-  // Calculate Totals
-  const todayRevenue = analyticsData[analyticsData.length-1].revenue;
-  
+  const { vendor, t } = useContext(AppContext);
+  const navigate = useNavigate();
+
+  // Fetch Stats
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['vendorStats', vendor.id],
+    queryFn: async () => {
+        const today = new Date().toISOString().split('T')[0];
+        
+        // 1. Today's Revenue
+        const { data: todayTxns } = await supabase
+            .from('transactions')
+            .select('amount')
+            .eq('vendor_id', vendor.id)
+            .gte('created_at', today);
+        
+        const revenue = todayTxns?.reduce((sum, tx) => sum + Number(tx.amount), 0) || 0;
+        const count = todayTxns?.length || 0;
+
+        // 2. Total Customers
+        const { count: customerCount } = await supabase
+            .from('vendor_customers')
+            .select('*', { count: 'exact', head: true })
+            .eq('vendor_id', vendor.id);
+
+        return { revenue, count, customerCount: customerCount || 0 };
+    }
+  });
+
+  // Fetch Recent Transactions
+  const { data: recentTxns } = useQuery({
+      queryKey: ['recentTxns', vendor.id],
+      queryFn: async () => {
+          const { data } = await supabase
+            .from('transactions')
+            .select('*, customers(name, phone)')
+            .eq('vendor_id', vendor.id)
+            .order('created_at', { ascending: false })
+            .limit(5);
+          return data || [];
+      }
+  });
+
+  if (isLoading) return <div className="p-8 text-center text-gray-500">Loading Dashboard...</div>;
+
   return (
     <div className="space-y-6">
       
       {/* Welcome Section */}
       <div className="flex justify-between items-center">
         <div>
-            <h1 className="text-2xl font-extrabold text-gray-900">{t('namaste')}, {vendor.ownerName.split(' ')[0]} 👋</h1>
+            <h1 className="text-2xl font-extrabold text-gray-900">{t('namaste')}, {vendor.owner_name?.split(' ')[0]} 👋</h1>
             <p className="text-gray-500 font-medium">{t('highSales')}</p>
         </div>
       </div>
@@ -27,7 +69,7 @@ const Dashboard = () => {
         <div className="flex justify-between items-start mb-4">
             <div>
                 <p className="text-green-100 font-bold mb-1 uppercase tracking-wide text-xs">{t('todaysEarnings')}</p>
-                <h2 className="text-5xl font-extrabold">₹{todayRevenue}</h2>
+                <h2 className="text-5xl font-extrabold">₹{stats?.revenue}</h2>
             </div>
             <div className="bg-white/20 p-2 rounded-full backdrop-blur-sm">
                 <IndianRupee className="w-6 h-6 text-white" />
@@ -35,17 +77,17 @@ const Dashboard = () => {
         </div>
         <div className="flex gap-2">
             <div className="bg-white/10 px-3 py-1 rounded-lg text-sm font-medium flex items-center">
-                <TrendingUp className="w-4 h-4 mr-1" /> +12%
+                <TrendingUp className="w-4 h-4 mr-1" /> Today
             </div>
             <div className="bg-white/10 px-3 py-1 rounded-lg text-sm font-medium">
-                {transactions.length} orders
+                {stats?.count} orders
             </div>
         </div>
       </div>
 
-      {/* Quick Action - Simulate Payment (Demo Only) */}
+      {/* Quick Action */}
       <button 
-        onClick={simulateTransaction}
+        onClick={() => navigate('/vendor/simulate')}
         className="w-full bg-brand-dark text-white p-4 rounded-2xl flex items-center justify-between shadow-lg active:scale-95 transition-transform"
       >
         <div className="flex items-center">
@@ -61,11 +103,11 @@ const Dashboard = () => {
       <div className="grid grid-cols-2 gap-4">
         <Card className="p-4 border-l-4 border-brand-saffron bg-orange-50/50">
             <p className="text-xs text-gray-500 font-bold uppercase mb-1">{t('totalCustomers')}</p>
-            <p className="text-2xl font-extrabold text-brand-saffron">{customers.length}</p>
+            <p className="text-2xl font-extrabold text-brand-saffron">{stats?.customerCount}</p>
         </Card>
         <Card className="p-4 border-l-4 border-brand-yellow bg-yellow-50/50">
             <p className="text-xs text-gray-500 font-bold uppercase mb-1">{t('weeklyVisits')}</p>
-            <p className="text-2xl font-extrabold text-brand-yellow">142</p>
+            <p className="text-2xl font-extrabold text-brand-yellow">--</p>
         </Card>
       </div>
 
@@ -77,29 +119,35 @@ const Dashboard = () => {
         </div>
         
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            {transactions.slice(0, 5).map((tx, idx) => (
-            <div key={tx.id} className={`p-4 flex items-center justify-between ${idx !== transactions.length -1 ? 'border-b border-gray-100' : ''}`}>
-                <div className="flex items-center space-x-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${tx.type === 'EARN' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {tx.customerName.charAt(0)}
+            {recentTxns?.map((tx, idx) => {
+                const custName = tx.customers?.name || tx.customers?.phone || 'Guest';
+                return (
+                <div key={tx.id} className={`p-4 flex items-center justify-between ${idx !== recentTxns.length -1 ? 'border-b border-gray-100' : ''}`}>
+                    <div className="flex items-center space-x-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${tx.type === 'EARN' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {custName.charAt(0)}
+                        </div>
+                        <div>
+                            <p className="font-bold text-gray-900">{custName}</p>
+                            <p className="text-xs text-gray-500 font-medium">
+                                {new Date(tx.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="font-bold text-gray-900">{tx.customerName}</p>
-                        <p className="text-xs text-gray-500 font-medium">
-                            {tx.type === 'EARN' ? `Paid via ${tx.paymentMethod}` : `Redeemed Reward`}
+                    <div className="text-right">
+                            <span className={`text-base font-extrabold ${tx.type === 'EARN' ? 'text-green-600' : 'text-gray-900'}`}>
+                            {tx.type === 'EARN' ? `+₹${tx.amount}` : 'FREE'}
+                        </span>
+                        <p className={`text-xs font-bold ${tx.type === 'EARN' ? 'text-brand-saffron' : 'text-gray-400'}`}>
+                            {tx.type === 'EARN' ? `+${tx.points_earned} pts` : '- pts'}
                         </p>
                     </div>
                 </div>
-                <div className="text-right">
-                        <span className={`text-base font-extrabold ${tx.type === 'EARN' ? 'text-green-600' : 'text-gray-900'}`}>
-                        {tx.type === 'EARN' ? `+₹${tx.amount}` : 'FREE'}
-                    </span>
-                    <p className={`text-xs font-bold ${tx.type === 'EARN' ? 'text-brand-saffron' : 'text-gray-400'}`}>
-                        {tx.type === 'EARN' ? `+${tx.points} pts` : '- pts'}
-                    </p>
-                </div>
-            </div>
-            ))}
+                )
+            })}
+            {(!recentTxns || recentTxns.length === 0) && (
+                <div className="p-4 text-center text-gray-500 text-sm">No transactions yet.</div>
+            )}
         </div>
       </div>
     </div>

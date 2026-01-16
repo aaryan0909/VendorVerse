@@ -1,10 +1,27 @@
 export const translations = {
   en: {
+    // Auth
+    loginTitle: "Vendor Login",
+    enterPhone: "Enter Mobile Number",
+    sendOtp: "Send OTP",
+    verifyOtp: "Verify OTP",
+    enterCode: "Enter 6-digit code",
+    sending: "Sending...",
+    verifying: "Verifying...",
+    
+    // Onboarding
+    setupTitle: "Business Setup",
+    businessName: "Business Name",
+    ownerName: "Owner Name",
+    upiId: "UPI ID (e.g. name@paytm)",
+    completeSetup: "Complete Setup",
+    
     // Navigation
     home: "Home",
     rewards: "Rewards",
     customers: "Customers",
     qr: "My QR",
+    simulate: "Simulate",
     
     // Dashboard
     namaste: "Namaste",
@@ -16,7 +33,7 @@ export const translations = {
     recentActivity: "Recent Len-Den",
     viewAll: "View All",
     showQR: "Show QR Code",
-    simulatePay: "Test Payment (₹50)",
+    simulatePay: "Record Payment",
     paymentReceived: "Payment Received!",
     
     // Rewards
@@ -52,14 +69,40 @@ export const translations = {
     scanPay: "Scan & Pay",
     showCustomer: "Show this to customer",
     download: "Download QR",
-    shareWhatsapp: "Share on WhatsApp"
+    shareWhatsapp: "Share on WhatsApp",
+    
+    // Simulate
+    simTitle: "Record Transaction",
+    simDesc: "Manually add a sale if webhook fails or for cash.",
+    amount: "Bill Amount (₹)",
+    custPhone: "Customer Phone",
+    processing: "Processing...",
+    success: "Success!",
+    ptsEarned: "Points Earned"
   },
   hi: {
+    // Auth
+    loginTitle: "दुकानदार लॉगिन",
+    enterPhone: "मोबाइल नंबर डालें",
+    sendOtp: "OTP भेजें",
+    verifyOtp: "OTP सत्यापित करें",
+    enterCode: "6-अंकों का कोड डालें",
+    sending: "भेज रहा है...",
+    verifying: "जांच कर रहा है...",
+    
+    // Onboarding
+    setupTitle: "बिजनेस सेटअप",
+    businessName: "दुकान का नाम",
+    ownerName: "मालिक का नाम",
+    upiId: "UPI ID (जैसे name@paytm)",
+    completeSetup: "पूरा करें",
+
     // Navigation
     home: "होम",
     rewards: "इनाम",
     customers: "ग्राहक",
     qr: "QR कोड",
+    simulate: "बिक्री",
     
     // Dashboard
     namaste: "नमस्ते",
@@ -71,7 +114,7 @@ export const translations = {
     recentActivity: "हाल का लेन-देन",
     viewAll: "सब देखें",
     showQR: "QR कोड दिखाएं",
-    simulatePay: "टेस्ट पेमेंट (₹50)",
+    simulatePay: "बिक्री दर्ज करें",
     paymentReceived: "पेमेंट प्राप्त हुआ!",
     
     // Rewards
@@ -107,6 +150,15 @@ export const translations = {
     scanPay: "स्कैन और पे",
     showCustomer: "ग्राहक को दिखाएं",
     download: "QR डाउनलोड करें",
-    shareWhatsapp: "व्हाट्सएप पर भेजें"
+    shareWhatsapp: "व्हाट्सएप पर भेजें",
+
+    // Simulate
+    simTitle: "बिक्री दर्ज करें",
+    simDesc: "अगर QR काम न करे या नकद हो तो यहाँ लिखें।",
+    amount: "बिल राशि (₹)",
+    custPhone: "ग्राहक का नंबर",
+    processing: "हो रहा है...",
+    success: "सफल!",
+    ptsEarned: "पॉइंट्स मिले"
   }
 };
