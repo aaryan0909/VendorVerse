@@ -1,215 +1,316 @@
-import React, { createContext, useState, useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Languages, Store, ArrowRight, Smartphone, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { TrendingUp, Users, Zap, QrCode, MessageCircle, ArrowUp } from 'lucide-react';
+import './index.css';
 
-import Dashboard from './pages/Dashboard';
-import RewardsSetup from './pages/RewardsSetup';
-import CustomersPage from './pages/CustomersPage';
-import CustomerPortal from './pages/CustomerPortal';
-import Login from './pages/Login';
-import VendorOnboarding from './pages/VendorOnboarding';
-import SimulatePayment from './pages/SimulatePayment';
-import EnvSetup from './pages/EnvSetup';
-
-import BottomNav from './components/BottomNav';
-import { translations } from './translations';
-import { Vendor, Language } from './types';
-import { supabase, isConfigured } from './lib/supabase';
-import { CURRENT_VENDOR } from './mockData';
-
-// Context Definition
-interface AppContextType {
-  vendor: Vendor;
-  language: Language;
-  setVendor: (v: Vendor) => void;
-  setLanguage: (l: Language) => void;
-  t: (key: keyof typeof translations['en']) => string;
-  isDemo: boolean;
+interface Transaction {
+  id: string;
+  customerVPA: string;
+  amount: number;
+  timestamp: string;
+  pointsEarned: number;
 }
 
-export const AppContext = createContext<AppContextType>({} as AppContextType);
-const queryClient = new QueryClient();
+interface Customer {
+  vpa: string;
+  totalSpent: number;
+  pointsBalance: number;
+  visits: number;
+  lastVisit: string;
+}
 
-// Auth Checker
-const AuthGuard = ({ children }: { children?: React.ReactNode }) => {
-    const navigate = useNavigate();
-    const { vendor, setVendor, isDemo } = React.useContext(AppContext);
+export default function App() {
+  const [todayRevenue, setTodayRevenue] = useState(1240);
+  const [transactions, setTransactions] = useState<Transaction[]>([
+    {
+      id: '1',
+      customerVPA: 'rajesh@paytm',
+      amount: 120,
+      timestamp: '10:45 AM',
+      pointsEarned: 12,
+    },
+    {
+      id: '2',
+      customerVPA: 'priya@phonepe',
+      amount: 85,
+      timestamp: '11:20 AM',
+      pointsEarned: 8,
+    },
+    {
+      id: '3',
+      customerVPA: 'amit@okhlo',
+      amount: 200,
+      timestamp: '12:00 PM',
+      pointsEarned: 20,
+    },
+  ]);
 
-    useEffect(() => {
-        const checkUser = async () => {
-            // 1. If in Demo Mode
-            if (isDemo) {
-                // If vendor is already set in memory (via Landing Page), allow access
-                if (vendor?.id) return;
-                
-                // Otherwise redirect to landing to "Launch" the demo
-                navigate('/');
-                return;
-            }
+  const [customers, setCustomers] = useState<Customer[]>([
+    {
+      vpa: 'rajesh@paytm',
+      totalSpent: 2400,
+      pointsBalance: 240,
+      visits: 20,
+      lastVisit: 'Today',
+    },
+    {
+      vpa: 'priya@phonepe',
+      totalSpent: 1850,
+      pointsBalance: 185,
+      visits: 15,
+      lastVisit: 'Yesterday',
+    },
+    {
+      vpa: 'amit@okhlo',
+      totalSpent: 3200,
+      pointsBalance: 320,
+      visits: 32,
+      lastVisit: 'Today',
+    },
+  ]);
 
-            // 2. Real Database Mode
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                navigate('/login');
-                return;
-            }
-            // Fetch Vendor Profile
-            const { data } = await supabase.from('vendors').select('*').eq('id', user.id).single();
-            if (data) setVendor(data);
-            else navigate('/onboarding');
-        };
-        checkUser();
-    }, [navigate, setVendor, isDemo, vendor?.id]);
+  const [showQR, setShowQR] = useState(false);
 
-    // If we have a vendor (either mock or real), render children
-    // If not, we are likely redirecting, so render null or loader
-    return vendor?.id ? <>{children}</> : null;
-};
-
-const Header = () => {
-    const { language, setLanguage, vendor, isDemo } = React.useContext(AppContext);
-    return (
-        <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sticky top-0 z-40">
-            <div className="flex items-center">
-                <div className="w-8 h-8 bg-brand-saffron rounded-lg flex items-center justify-center mr-2">
-                    <Store className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex flex-col">
-                    <span className="font-bold text-gray-900 text-lg truncate max-w-[150px]">
-                        {vendor?.business_name || 'VendorVerse'}
-                    </span>
-                    {isDemo && <span className="text-[10px] text-brand-green font-bold bg-green-50 px-1 rounded w-fit">DEMO PREVIEW</span>}
-                </div>
-            </div>
-            <button 
-                onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
-                className="flex items-center px-3 py-1.5 bg-gray-100 rounded-full border border-gray-300 active:bg-gray-200 transition-colors"
-            >
-                <Languages className="w-4 h-4 mr-2 text-gray-600" />
-                <span className="text-sm font-bold text-gray-700">{language === 'en' ? 'En' : 'Hi'}</span>
-            </button>
-        </div>
-    );
-};
-
-const VendorLayout = ({ children }: { children?: React.ReactNode }) => {
-  return (
-    <div className="min-h-screen bg-gray-50 font-sans pb-20 md:pb-0">
-      <AuthGuard>
-        <div className="md:ml-0">
-            <Header />
-            <main className="p-4 md:p-8 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
-                {children}
-            </main>
-        </div>
-        <BottomNav />
-      </AuthGuard>
-    </div>
-  );
-};
-
-const Landing = () => {
-    const navigate = useNavigate();
-    const { setVendor } = React.useContext(AppContext);
-
-    const launchVendorDemo = () => {
-        // Hydrate with Mock Data
-        setVendor(CURRENT_VENDOR);
-        navigate('/vendor');
+  // Simulate a payment webhook
+  const simulatePayment = (amount: number, customerVPA: string) => {
+    const pointsEarned = Math.floor(amount / 10);
+    
+    // Add transaction
+    const newTransaction: Transaction = {
+      id: Date.now().toString(),
+      customerVPA,
+      amount,
+      timestamp: new Date().toLocaleTimeString(),
+      pointsEarned,
     };
+    setTransactions([newTransaction, ...transactions]);
 
-    return (
-    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-        
-        {/* Abstract Background Shapes */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-brand-saffron/20 rounded-full blur-3xl -ml-20 -mt-20"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-green/20 rounded-full blur-3xl -mr-20 -mb-20"></div>
+    // Update revenue
+    setTodayRevenue(todayRevenue + amount);
 
-        <div className="relative z-10 w-full max-w-md text-center">
-            
-            <div className="mb-8 inline-flex items-center bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20">
-                <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
-                <span className="text-white text-xs font-bold tracking-wider uppercase">Live Interactive Demo</span>
-            </div>
-
-            <div className="w-24 h-24 bg-gradient-to-br from-brand-saffron to-orange-600 rounded-2xl mx-auto flex items-center justify-center mb-8 shadow-2xl shadow-orange-500/30 transform -rotate-3">
-                <Store className="w-12 h-12 text-white" />
-            </div>
-
-            <h1 className="text-4xl font-extrabold text-white mb-4 tracking-tight">VendorVerse</h1>
-            <p className="text-lg text-gray-300 mb-10 leading-relaxed">
-                India's first <span className="text-white font-bold">UPI-Native Loyalty OS</span> for the 12 million street vendors who feed the nation.
-            </p>
-
-            <div className="space-y-4">
-                <button 
-                    onClick={launchVendorDemo} 
-                    className="group w-full bg-white hover:bg-gray-50 text-gray-900 p-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center transition-all transform hover:scale-[1.02]"
-                >
-                    <div className="bg-brand-saffron p-1.5 rounded-lg mr-3 text-white">
-                        <Zap className="w-5 h-5 fill-current" />
-                    </div>
-                    Launch Vendor App
-                    <ArrowRight className="w-5 h-5 ml-auto text-gray-400 group-hover:text-gray-900" />
-                </button>
-
-                 <button 
-                    onClick={() => navigate('/customer')} 
-                    className="group w-full bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 p-4 rounded-xl font-bold text-lg flex items-center justify-center transition-all"
-                >
-                    <div className="bg-gray-700 group-hover:bg-gray-600 p-1.5 rounded-lg mr-3">
-                        <Smartphone className="w-5 h-5" />
-                    </div>
-                    View Customer Portal
-                    <ArrowRight className="w-5 h-5 ml-auto text-gray-500 group-hover:text-white" />
-                </button>
-            </div>
-
-            <div className="mt-12 flex items-center justify-center space-x-6 opacity-50">
-                <span className="text-xs text-gray-400 font-medium">Zero App Download</span>
-                <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
-                <span className="text-xs text-gray-400 font-medium">No Hardware Required</span>
-            </div>
-        </div>
-    </div>
+    // Update customer points
+    setCustomers(
+      customers.map(c =>
+        c.vpa === customerVPA
+          ? {
+              ...c,
+              pointsBalance: c.pointsBalance + pointsEarned,
+              totalSpent: c.totalSpent + amount,
+              visits: c.visits + 1,
+              lastVisit: 'Just now',
+            }
+          : c
+      )
     );
-}
 
-const App = () => {
-  const [vendor, setVendor] = useState<Vendor>({} as Vendor);
-  const [language, setLanguage] = useState<Language>('en');
-  
-  // If not configured, we run in Demo Mode
-  const isDemo = !isConfigured();
-
-  const t = (key: keyof typeof translations['en']) => {
-      return translations[language][key] || key;
+    // Simulate WhatsApp notification
+    alert(`✅ Payment processed!\n\n💬 WhatsApp sent to customer:\n"You earned ${pointsEarned} points! Free chai next visit. 🍵"`);
   };
 
-  return (
-    <QueryClientProvider client={queryClient}>
-        <AppContext.Provider value={{ 
-            vendor, language, setVendor, setLanguage, t, isDemo
-        }}>
-        <Router>
-            <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/setup-db" element={<EnvSetup />} />
-            <Route path="/onboarding" element={<VendorOnboarding />} />
-            <Route path="/customer" element={<CustomerPortal />} />
-            
-            {/* Protected Vendor Routes */}
-            <Route path="/vendor" element={<VendorLayout><Dashboard /></VendorLayout>} />
-            <Route path="/vendor/simulate" element={<VendorLayout><SimulatePayment /></VendorLayout>} />
-            <Route path="/vendor/rewards" element={<VendorLayout><RewardsSetup /></VendorLayout>} />
-            <Route path="/vendor/customers" element={<VendorLayout><CustomersPage /></VendorLayout>} />
-            </Routes>
-        </Router>
-        </AppContext.Provider>
-    </QueryClientProvider>
-  );
-};
+  const totalCustomers = customers.length;
+  const totalPointsAwarded = transactions.reduce((sum, t) => sum + t.pointsEarned, 0);
+  const activeCustomers = customers.filter(c => c.lastVisit === 'Today').length;
 
-export default App;
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-blue-50 p-4">
+      {/* Header */}
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
+            <span className="text-3xl">🇮🇳</span>
+            VendorVerse
+          </h1>
+          <p className="text-gray-600 mt-2">Loyalty for India's 12 Million Street Vendors</p>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-lg p-6 shadow-sm border-l-4 border-green-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Aaj ki Kamai</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">₹{todayRevenue}</p>
+                <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                  <ArrowUp size={14} /> {transactions.length} transactions
+                </p>
+              </div>
+              <TrendingUp className="text-green-500" size={32} />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg p-6 shadow-sm border-l-4 border-blue-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Active Customers</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{totalCustomers}</p>
+                <p className="text-xs text-blue-600 mt-2">{activeCustomers} active today</p>
+              </div>
+              <Users className="text-blue-500" size={32} />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg p-6 shadow-sm border-l-4 border-purple-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Total Points Awarded</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{totalPointsAwarded}</p>
+                <p className="text-xs text-purple-600 mt-2">1 point = ₹1 value</p>
+              </div>
+              <Zap className="text-purple-500" size={32} />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg p-6 shadow-sm border-l-4 border-orange-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Your QR Code</p>
+                <button
+                  onClick={() => setShowQR(!showQR)}
+                  className="mt-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition"
+                >
+                  Show QR
+                </button>
+              </div>
+              <QrCode className="text-orange-500" size={32} />
+            </div>
+          </div>
+        </div>
+
+        {/* QR Code Modal */}
+        {showQR && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg p-8 max-w-sm w-full">
+              <h2 className="text-xl font-bold mb-4">Your UPI QR Code</h2>
+              <div className="bg-gray-100 p-6 rounded-lg mb-4 flex items-center justify-center">
+                <div className="w-48 h-48 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500 text-sm text-center">
+                  📱 Scan this QR with any UPI app
+                  <br />
+                  <br />
+                  (In production: real QR image)
+                </div>
+              </div>
+              <p className="text-gray-600 text-sm mb-4">Share this QR with your customers. They scan it, pay, and points are auto-credited.</p>
+              <button
+                onClick={() => setShowQR(false)}
+                className="w-full py-2 bg-gray-200 text-gray-900 rounded-lg font-medium hover:bg-gray-300 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Real-Time Transactions */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Real-Time Transactions</h2>
+              <div className="space-y-4">
+                {transactions.map(txn => (
+                  <div
+                    key={txn.id}
+                    className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-transparent rounded-lg border border-blue-100"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{txn.customerVPA}</p>
+                      <p className="text-sm text-gray-600">{txn.timestamp}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-gray-900">₹{txn.amount}</p>
+                      <p className="text-sm text-green-600">+{txn.pointsEarned} pts</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Test Payment Buttons */}
+            <div className="bg-white rounded-lg shadow-sm p-6 mt-6">
+              <h3 className="font-bold text-gray-900 mb-4">💡 Test Payment Webhook</h3>
+              <p className="text-gray-600 text-sm mb-4">Click to simulate a customer payment. Watch points auto-credit.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => simulatePayment(100, 'rajesh@paytm')}
+                  className="py-2 px-4 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition text-sm"
+                >
+                  ₹100 Payment
+                </button>
+                <button
+                  onClick={() => simulatePayment(150, 'priya@phonepe')}
+                  className="py-2 px-4 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition text-sm"
+                >
+                  ₹150 Payment
+                </button>
+                <button
+                  onClick={() => simulatePayment(200, 'amit@okhlo')}
+                  className="py-2 px-4 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition text-sm"
+                >
+                  ₹200 Payment
+                </button>
+                <button
+                  onClick={() => simulatePayment(75, 'new@customer')}
+                  className="py-2 px-4 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition text-sm"
+                >
+                  ₹75 New Customer
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Customer Ledger */}
+          <div>
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Customer Ledger</h2>
+              <div className="space-y-3">
+                {customers.map(customer => (
+                  <div
+                    key={customer.vpa}
+                    className="p-4 border border-gray-200 rounded-lg hover:border-orange-300 transition"
+                  >
+                    <p className="font-medium text-gray-900 text-sm">{customer.vpa}</p>
+                    <div className="mt-3 space-y-2 text-xs text-gray-600">
+                      <div className="flex justify-between">
+                        <span>Visits:</span>
+                        <span className="font-medium">{customer.visits}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Total Spent:</span>
+                        <span className="font-medium">₹{customer.totalSpent}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Points:</span>
+                        <span className="font-medium text-green-600">{customer.pointsBalance}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Last Visit:</span>
+                        <span className="font-medium">{customer.lastVisit}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Feature Highlight */}
+            <div className="bg-gradient-to-br from-orange-400 to-red-500 rounded-lg shadow-sm p-6 mt-6 text-white">
+              <h3 className="font-bold mb-3 flex items-center gap-2">
+                <MessageCircle size={20} /> Zero-UI Innovation
+              </h3>
+              <ul className="text-sm space-y-2">
+                <li>✅ Customer scans your UPI QR</li>
+                <li>✅ Points auto-credited (no app needed)</li>
+                <li>✅ WhatsApp notification sent</li>
+                <li>✅ 0% vendor effort, 100% retention</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-12 text-center text-gray-600 text-sm">
+          <p>VendorVerse • Loyalty for India's Informal Economy</p>
+          <p className="mt-2 text-xs text-gray-500">This is an interactive MVP. Real implementation requires UPI webhook integration.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
