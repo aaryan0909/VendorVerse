@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { IndianRupee, TrendingUp, Zap, ChevronRight, Info, X } from 'lucide-react';
+import { IndianRupee, TrendingUp, Zap, ChevronRight, Info, X, RotateCw } from 'lucide-react';
 import { AppContext } from '../App';
 import { Card } from '../components/UIComponents';
 import { useQuery } from '@tanstack/react-query';
@@ -79,14 +79,19 @@ const Dashboard = () => {
                 <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                 <div>
                     <p className="text-sm font-bold text-blue-800">Preview Mode Active</p>
-                    <p className="text-xs text-blue-700">
-                        You are viewing a simulation. Data is not saved to the database.
+                    <p className="text-xs text-blue-700 mt-1">
+                        Viewing as <strong>{vendor.business_name}</strong>. Data is simulated.
                     </p>
                 </div>
               </div>
-              <button onClick={() => setShowDemoBanner(false)} className="text-blue-400 hover:text-blue-600">
-                  <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center space-x-2">
+                 <button onClick={() => window.location.reload()} className="text-blue-500 hover:text-blue-700" title="Reset Demo">
+                    <RotateCw className="w-4 h-4" />
+                 </button>
+                 <button onClick={() => setShowDemoBanner(false)} className="text-blue-400 hover:text-blue-600">
+                    <X className="w-4 h-4" />
+                 </button>
+              </div>
           </div>
       )}
 

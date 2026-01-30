@@ -32,7 +32,7 @@ export const AppContext = createContext<AppContextType>({} as AppContextType);
 const queryClient = new QueryClient();
 
 // Auth Checker
-const AuthGuard = ({ children }: { children?: React.ReactNode }) => {
+const AuthGuard = ({ children }: React.PropsWithChildren) => {
     const navigate = useNavigate();
     const { vendor, setVendor, isDemo } = React.useContext(AppContext);
 
@@ -93,7 +93,7 @@ const Header = () => {
     );
 };
 
-const VendorLayout = ({ children }: { children?: React.ReactNode }) => {
+const VendorLayout = ({ children }: React.PropsWithChildren) => {
   return (
     <div className="min-h-screen bg-gray-50 font-sans pb-20 md:pb-0">
       <AuthGuard>

@@ -1,9 +1,9 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, ArrowRight, Loader2, Settings, PlayCircle } from 'lucide-react';
-import { supabase, resetConnection, isConfigured } from '../lib/supabase';
+import { Store, ArrowRight, PlayCircle } from 'lucide-react';
+import { supabase, isConfigured } from '../lib/supabase';
 import { AppContext } from '../App';
-import { Button, Input, Card } from '../components/UIComponents';
+import { Button, Input } from '../components/UIComponents';
 import { CURRENT_VENDOR } from '../mockData';
 
 const Login = () => {
@@ -26,8 +26,6 @@ const Login = () => {
 
         // Check config before attempting
         if (!isConfigured()) {
-            // If config is invalid, we don't even try Supabase.
-            // We simulate the flow for the user so they can test the UI.
             setTimeout(() => {
                 alert("Running in DEMO MODE (Database not connected). Use 123456 as OTP.");
                 setStep('OTP');
@@ -42,9 +40,8 @@ const Login = () => {
             });
 
             if (error) {
-                console.error("Auth Error:", error);
                 if (error.message.includes('Invalid API key')) {
-                    const confirmDemo = window.confirm("Your Database API Key is invalid. Would you like to switch to Demo Mode?");
+                    const confirmDemo = window.confirm("Database key invalid. Switch to Demo Mode?");
                     if (confirmDemo) enterDemoMode();
                 } else {
                     alert('Error sending OTP: ' + error.message);
@@ -113,14 +110,6 @@ const Login = () => {
         <div className="min-h-screen bg-brand-saffron flex flex-col justify-center items-center p-6 relative">
             <div className="bg-white w-full max-w-sm rounded-3xl p-8 shadow-2xl relative">
                 
-                <button 
-                    onClick={() => navigate('/setup-db')}
-                    className="absolute top-4 right-4 text-gray-300 hover:text-gray-500"
-                    title="Database Settings"
-                >
-                    <Settings className="w-5 h-5" />
-                </button>
-
                 <div className="text-center mb-8">
                     <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Store className="w-8 h-8 text-brand-saffron" />
@@ -159,7 +148,7 @@ const Login = () => {
                             className="w-full text-gray-600"
                             onClick={enterDemoMode}
                         >
-                            <PlayCircle className="w-5 h-5 mr-2" /> Try Demo Mode
+                            <PlayCircle className="w-5 h-5 mr-2" /> Quick Demo Login
                         </Button>
                     </div>
                 ) : (
